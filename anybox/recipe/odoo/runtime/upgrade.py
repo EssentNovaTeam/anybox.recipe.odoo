@@ -8,6 +8,7 @@ import os
 import sys
 import imp
 import logging
+import threading
 from argparse import ArgumentParser
 from argparse import ArgumentDefaultsHelpFormatter
 from argparse import SUPPRESS
@@ -19,8 +20,13 @@ from .session import Session
 
 DEFAULT_LOG_FILE = 'upgrade.log'
 
+class DBFormatter(logging.Formatter):
+    def format(self, record):
+        record.pid = os.getpid()
+        record.dbname = getattr(threading.currentThread(), 'dbname', '?')
+        return logging.Formatter.format(self, record)
 
-def upgrade(upgrade_script, upgrade_callable, conf, buildout_dir):
+def upgrade(upgrade_script, upgrade_callable, conf):
     """Run the upgrade from a source file.
 
     All arguments are set in the standalone script produced by buildout through
@@ -39,7 +45,6 @@ def upgrade(upgrade_script, upgrade_callable, conf, buildout_dir):
       Both ``None`` and 0 are interpreted as success.
 
     * ``conf``: path to the Odoo configuration file (managed by the recipe)
-    * ``buildout_dir``: directory of the buildout
     """
 
     parser = ArgumentParser(formatter_class=ArgumentDefaultsHelpFormatter,
@@ -79,6 +84,9 @@ def upgrade(upgrade_script, upgrade_callable, conf, buildout_dir):
         sys.stderr.write("Cannot open %r for write" % log_path + os.linesep)
         sys.exit(-1)
 
+    import openerp
+    buildout_dir = os.path.dirname(os.path.abspath(os.path.join(
+        os.path.realpath(openerp.__file__), '..', '..', '..',)))
     session = Session(conf, buildout_dir)
 
     from openerp.tools import config
@@ -102,8 +110,12 @@ def upgrade(upgrade_script, upgrade_callable, conf, buildout_dir):
     log_file_handler.setLevel(getattr(logging, log_level))
     log_file_handler.setFormatter(logging.Formatter(
         "%(asctime)s %(levelname)s  %(message)s"))
+    
+    format = '%(asctime)s %(pid)s %(levelname)s %(dbname)s %(name)s: %(message)s'
+    formatter = DBFormatter(format)
+    log_file_handler.setFormatter(formatter)
 
-    logger.addHandler(log_file_handler)
+    logging.getLogger().addHandler(log_file_handler)
 
     if not arguments.quiet:
         logger.addHandler(console_handler)
