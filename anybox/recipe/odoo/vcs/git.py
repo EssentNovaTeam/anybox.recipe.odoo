@@ -242,7 +242,8 @@ class GitRepo(BaseRepo):
                         self.target_dir)
         branch = self.options.get('branch')
         if not self.has_commit(sha):
-            fetch_cmd = ['git', 'fetch', BUILDOUT_ORIGIN]
+            remote = BUILDOUT_ORIGIN if checkout else self.url
+            fetch_cmd = ['git', 'fetch', remote]
             if branch is None:
                 logger.info("%s: SHA pinning without remote "
                             "branch indication. "
