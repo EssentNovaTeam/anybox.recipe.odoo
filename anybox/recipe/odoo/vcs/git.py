@@ -413,10 +413,12 @@ class GitRepo(BaseRepo):
                                    "or non git local directory %s" %
                                    self.target_dir)
             os.chdir(self.target_dir)
-            rtype, sha = self.query_remote_ref(BUILDOUT_ORIGIN, revision)
+            rtype, sha = self.query_remote_ref(self.url, revision)
             if rtype is None and ishex(revision):
                 self.fetch_remote_sha(revision, checkout=False)
-            cmd = ['git', 'pull', self.url, revision]
+                cmd = ['git', 'merge', revision]
+            else:
+                cmd = ['git', 'pull', self.url, revision]
             if self.git_version >= (1, 7, 10):
                 # --edit and --no-edit appear with Git 1.7.10
                 # see Documentation/RelNotes/1.7.10.txt of Git
